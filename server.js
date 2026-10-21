@@ -20,9 +20,9 @@ const app = express();
 app.use(cors({ origin: process.env.CLIENT_URL || "*" }));
 app.use(express.json());
 
-// Images are served from Cloudinary's CDN, not from local disk.
+// express.static("public") removed — all restaurant/menu images are now
+// served directly from Cloudinary's CDN, not from local disk.
 
-app.get("/", (req, res) => res.json({ message: "Aangan backend is running" }));
 app.get("/api/health", (req, res) => res.json({ status: "ok" }));
 
 app.use("/api/auth", authRoutes);
@@ -32,23 +32,26 @@ app.use("/api/bookings", bookingRoutes);
 app.use("/api/reviews", myReviewRoutes);
 app.use("/api/menu", menuRoutes);
 
-// 404 handler: must come after all routes
-app.use((req, res) => res.status(404).json({ message: "Route not found" }));
-
-// Single error handler: must come last
 app.use((err, req, res, next) => {
   if (err instanceof multer.MulterError) {
     return res.status(400).json({ message: err.message });
   }
+  if (err) {
+    return res.status(400).json({ message: err.message });
+  }
+  next();
+});
+
+app.use((req, res) => res.status(404).json({ message: "Route not found" }));
+
+app.use((err, req, res, next) => {
   console.error(err.stack);
-  res.status(err.status || 500).json({
-    message: err.message || "Something went wrong on the server",
-  });
+  res.status(500).json({ message: "Something went wrong on the server" });
 });
 
 const PORT = process.env.PORT || 5000;
 
-// Only listen locally. Vercel runs the exported app as a serverless function.
+// Only listen locally — Vercel handles this via serverless functions
 if (process.env.NODE_ENV !== "production") {
   app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 }
